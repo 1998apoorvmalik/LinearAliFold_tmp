@@ -1,0 +1,12 @@
+# Folder view configuration files
+Desktop.ini
+
+# Thumbnail cache files
+._*
+Thumbs.db
+.DS_Store
+
+__pycache__/
+
+# 
+*.pyc
