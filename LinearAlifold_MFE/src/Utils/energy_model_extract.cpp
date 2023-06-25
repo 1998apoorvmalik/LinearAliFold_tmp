@@ -11,8 +11,6 @@ int main()
     std::string nucleotides = "ACGUN";
 
     // Extract values at the top
-    std::cout << "lxc37"
-              << " " << lxc37 << std::endl;
     std::cout << "ML_intern37"
               << " " << ML_intern37 << std::endl;
     std::cout << "ML_closing37"
@@ -25,6 +23,33 @@ int main()
               << " " << ninio37 << std::endl;
     std::cout << "TerminalAU37"
               << " " << TerminalAU37 << std::endl;
+
+    // Triloop values
+    for (int i = 0; i < 2; i++)
+    {
+        int val = Triloop37[i];
+        if (val == VIE_INF)
+            continue;
+        std::cout << "triloop_length_" << i << " " << Triloop37[i] << std::endl;
+    }
+
+    // Tetraloop values
+    for (int i = 0; i < 16; i++)
+    {
+        int val = Tetraloop37[i];
+        if (val == VIE_INF)
+            continue;
+        std::cout << "tetraloop_length_" << i << " " << Tetraloop37[i] << std::endl;
+    }
+
+    // Hexaloop values
+    for (int i = 0; i < 4; i++)
+    {
+        int val = Hexaloop37[i];
+        if (val == VIE_INF)
+            continue;
+        std::cout << "hexaloop_length_" << i << " " << Hexaloop37[i] << std::endl;
+    }
 
     // Hairpin length values
     for (int i = 0; i < 31; i++)

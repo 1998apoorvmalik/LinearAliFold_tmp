@@ -1,130 +1,108 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <cmath>
 #include <string>
-#include <map>
 #include <chrono>
-
 #include "array_utils.h"
+
+// Include OpenMP for parallelization (for parsing energy text file) if available
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 #define VIE_INF 10000000
 #define NUCS_NUM 5
 #define MAXLOOPSIZE 30
 #define NBPAIRS 7
+#define lxc37 107.856
 
 #define NUM_TO_NUC(x) (x == -1 ? -1 : (((x == 4 or x == 5) ? 0 : (x + 1))))
 #define NUM_TO_PAIR(x, y) (x == 0 ? (y == 3 ? 5 : 7) : (x == 1 ? (y == 2 ? 1 : 7) : (x == 2 ? (y == 1 ? 2 : (y == 3 ? 3 : 7)) : (x == 3 ? (y == 2 ? 4 : (y == 0 ? 6 : 7)) : 7)))) // 7 is _? or ?_
 #define NUC_TO_PAIR(x, y) (x == 1 ? (y == 4 ? 5 : 0) : (x == 2 ? (y == 3 ? 1 : 0) : (x == 3 ? (y == 2 ? 2 : (y == 4 ? 3 : 0)) : (x == 4 ? (y == 3 ? 4 : (y == 1 ? 6 : 0)) : 0))))
 
-double lxc37 = 107.856;
-std::string V_NUCS = "ACGUN";
-std::string PAIRS[] = {"NP", "CG", "GC", "GU", "UG", "AU", "UA", "NN"};
+// Nucleotides
+const std::string C_NUCS = "ACGUN"; // Contrafold
+const std::string V_NUCS = "NACGU"; // Vienna
+const std::string PAIRS[] = {"NP", "CG", "GC", "GU", "UG", "AU", "UA", "NN"};
 
-// prefixes
-std::string stackPrefix = "stack_";
-std::string hairpinLengthPrefix = "hairpin_length_";
-std::string internalLengthPrefix = "internal_length_";
-std::string bulgeLengthPrefix = "bulge_length_";
-std::string hairpinMismatchPrefix = "terminal_mismatch_hairpin_";
-std::string multiMismatchPrefix = "terminal_mismatch_multi_";
-std::string externalMismatchPrefix = "terminal_mismatch_external_";
-std::string internalMismatchPrefix = "terminal_mismatch_internal_";
-std::string internalExplicitPrefix = "internal_explicit_";
-std::string dangle5Prefix = "dangle_5_";
-std::string dangle3Prefix = "dangle_3_";
-
-// Utility functions
-bool decodeEnergyString(std::string &input, const std::string &prefix, char delimiter = '_')
-{
-    if (input.find(prefix) == std::string::npos)
-        return false;
-
-    input = input.substr(prefix.length());
-    int pos = 0;
-    for (char c : input)
-    {
-        if (c == delimiter)
-            input.erase(input.begin() + pos);
-        pos++;
-    }
-    return true;
-}
+// Parsing prefixes
+const std::string stackPrefix = "stack_";
+const std::string triloopPrefix = "triloop_length_";
+const std::string tetraloopPrefix = "tetraloop_length_";
+const std::string hexaloopPrefix = "hexaloop_length_";
+const std::string hairpinLengthPrefix = "hairpin_length_";
+const std::string internalLengthPrefix = "internal_length_";
+const std::string bulgeLengthPrefix = "bulge_length_";
+const std::string hairpinMismatchPrefix = "terminal_mismatch_hairpin_";
+const std::string multiMismatchPrefix = "terminal_mismatch_multi_";
+const std::string externalMismatchPrefix = "terminal_mismatch_external_";
+const std::string internalMismatchPrefix = "terminal_mismatch_internal_";
+const std::string internalExplicitPrefix = "internal_explicit_";
+const std::string dangle5Prefix = "dangle_5_";
+const std::string dangle3Prefix = "dangle_3_";
 
 // Energy Model Class
 class EnergyModel
 {
 
 private:
-    int ML_intern37;
-    int ML_closing37;
-    int ML_BASE37;
-    int MAX_NINIO;
-    int ninio37;
-    int TerminalAU37; // Outermost pair is AU or GU; also used in tetra_loop triloop
-    int **stack37;
-    int *hairpin37;
-    int *bulge37;
-    int *internal_loop37;
-    int ***mismatchH37;   // Terminal mismatch for hairpin loop
-    int ***mismatchM37;   // Terminal mismatch for multi loop
-    int ***mismatchExt37; // Terminal mismatch for external loop
-    int ***mismatchI37;   // Terminal mismatch for internal loop
-    int ***mismatch1nI37;
-    int ***mismatch23I37;
-    int ****int11_37;
-    int *****int21_37;
-    int ******int22_37;
-    int **dangle5_37;
-    int **dangle3_37;
+    int ML_intern37;      // ???
+    int ML_closing37;     // ???
+    int ML_BASE37;        // ???
+    int MAX_NINIO;        // ???
+    int ninio37;          // ???
+    int TerminalAU37;     // Outermost pair is AU or GU; also used in tetra_loop triloop
+    int *Triloop37;       // Triloop energies
+    int *Tetraloop37;     // Tetraloop energies
+    int *Hexaloop37;      // Hexaloop energies
+    int **stack37;        // Stacking energies
+    int *hairpin37;       // Hairpin loop energies (based on length)
+    int *bulge37;         // Bulge loop energies (based on length)
+    int *internal_loop37; // Internal loop energies (based on length)
+    int ***mismatchH37;   // Terminal mismatch energies for hairpin loop
+    int ***mismatchM37;   // Terminal mismatch energies for multi loop
+    int ***mismatchExt37; // Terminal mismatch energies for external loop
+    int ***mismatchI37;   // Terminal mismatch energies for internal loop
+    int ***mismatch1nI37; // Terminal mismatch energies for internal (1 x N) loop
+    int ***mismatch23I37; // Terminal mismatch energies for internal (2 x 3) loop
+    int ****int11_37;     // Terminal mismatch energies for internal (1 x 1) loop
+    int *****int21_37;    // Terminal mismatch energies for internal (2 x 1) loop
+    int ******int22_37;   // Terminal mismatch energies for internal (2 x 2) loop
+    int **dangle5_37;     // Dangle energies for 5' end
+    int **dangle3_37;     // Dangle energies for 3' end
 
-    // multi_loop
-    int E_MLstem(int type, int si1, int sj1)
+    bool decodeEnergyString(std::string &input, const std::string &prefix, char delimiter = '_')
     {
-        int energy = 0;
+        if (input.find(prefix) == std::string::npos)
+            return false;
 
-        if (si1 >= 0 && sj1 >= 0)
-        {
-            energy += mismatchM37[type][si1][sj1];
-        }
-        else if (si1 >= 0)
-        {
-            energy += dangle5_37[type][si1];
-        }
-        else if (sj1 >= 0)
-        {
-            energy += dangle3_37[type][sj1];
-        }
-
-        if (type > 2)
-        {
-            energy += TerminalAU37;
-        }
-
-        energy += ML_intern37;
-
-        return energy;
+        input = input.substr(prefix.length());
+        input.erase(std::remove(input.begin(), input.end(), delimiter), input.end());
+        return true;
     }
 
     void updateNucsIdx(std::string &input, int nucsIdxs[])
     {
         for (int i = 0; i < (int)input.size(); i++)
-            nucsIdxs[i] = V_NUCS.find(input[i]);
+            nucsIdxs[i] = C_NUCS.find(input[i]);
     }
 
 public:
-    // takes a file path and loads the energy model
-    EnergyModel(const std::string &filepath)
+    // Takes a file path and loads the energy model
+    EnergyModel(const std::string &filepath, bool verbose = false)
     {
-
         auto start = std::chrono::high_resolution_clock::now();
-        // initialize the arrays
-        stack37 = create2DArray(NBPAIRS + 1, NBPAIRS + 1);
+
+        // Initialize the arrays
+        Triloop37 = new int[2];
+        Tetraloop37 = new int[16];
+        Hexaloop37 = new int[4];
 
         hairpin37 = new int[MAXLOOPSIZE + 1];
         bulge37 = new int[MAXLOOPSIZE + 1];
         internal_loop37 = new int[MAXLOOPSIZE + 1];
 
+        stack37 = create2DArray(NBPAIRS + 1, NBPAIRS + 1);
         mismatchH37 = create3DArray(NBPAIRS + 1, NUCS_NUM, NUCS_NUM);
         mismatchM37 = create3DArray(NBPAIRS + 1, NUCS_NUM, NUCS_NUM);
         mismatchExt37 = create3DArray(NBPAIRS + 1, NUCS_NUM, NUCS_NUM);
@@ -142,12 +120,20 @@ public:
         std::ifstream file(filepath);
         std::string line;
 
-        int *nucsIdxs = new int[6];
+        std::vector<std::string> lines;
+
+        // Serial reading of the file
         while (std::getline(file, line))
+            lines.push_back(line);
+
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
+        for (int i = 0; i < lines.size(); i++)
         {
-            std::istringstream is(line);
+            int *nucsIdxs = new int[10], value;
+            std::istringstream is(lines[i]);
             std::string key;
-            int value;
             if (is >> key >> value)
             {
                 if (decodeEnergyString(key, "ML_intern"))
@@ -167,6 +153,15 @@ public:
 
                 else if (decodeEnergyString(key, "TerminalAU"))
                     TerminalAU37 = value;
+
+                else if (decodeEnergyString(key, triloopPrefix))
+                    Triloop37[std::stoi(key)] = value;
+
+                else if (decodeEnergyString(key, tetraloopPrefix))
+                    Tetraloop37[std::stoi(key)] = value;
+
+                else if (decodeEnergyString(key, hexaloopPrefix))
+                    Hexaloop37[std::stoi(key)] = value;
 
                 else if (decodeEnergyString(key, hairpinLengthPrefix))
                     hairpin37[std::stoi(key)] = value;
@@ -237,13 +232,41 @@ public:
                             int22_37[NUM_TO_PAIR(nucsIdxs[2], nucsIdxs[3])][NUM_TO_PAIR(nucsIdxs[4], nucsIdxs[5])][nucsIdxs[6]][nucsIdxs[7]][nucsIdxs[8]][nucsIdxs[9]] = value;
                     }
                 }
-                else
+                else if (verbose)
+                {
                     std::cout << "Warning: Unknown key in Energy Data: " << key << " -> " << value << std::endl;
+                }
+
+                // Free memory
+                delete[] nucsIdxs;
             }
         }
+
+        lines.clear();
         auto finish = std::chrono::high_resolution_clock::now();
         std::chrono::duration<double> elapsed = finish - start;
-        std::cout << "Elapsed time: " << elapsed.count() << " s\n";
+        if (verbose)
+            std::cout << "Time to load energy model: " << elapsed.count() << " s\n";
+    }
+
+    // Destructor to free memory and avoid memory leaks
+    ~EnergyModel()
+    {
+        delete2DArray(stack37, NBPAIRS + 1);
+        delete[] hairpin37;
+        delete[] bulge37;
+        delete[] internal_loop37;
+        delete3DArray(mismatchH37, NBPAIRS + 1, NUCS_NUM);
+        delete3DArray(mismatchM37, NBPAIRS + 1, NUCS_NUM);
+        delete3DArray(mismatchExt37, NBPAIRS + 1, NUCS_NUM);
+        delete3DArray(mismatchI37, NBPAIRS + 1, NUCS_NUM);
+        delete3DArray(mismatch1nI37, NBPAIRS + 1, NUCS_NUM);
+        delete3DArray(mismatch23I37, NBPAIRS + 1, NUCS_NUM);
+        delete4DArray(int11_37, NBPAIRS + 1, NBPAIRS + 1, NUCS_NUM);
+        delete5DArray(int21_37, NBPAIRS + 1, NBPAIRS + 1, NUCS_NUM, NUCS_NUM);
+        delete6DArray(int22_37, NBPAIRS + 1, NBPAIRS + 1, NUCS_NUM, NUCS_NUM, NUCS_NUM);
+        delete2DArray(dangle5_37, NBPAIRS + 1);
+        delete2DArray(dangle3_37, NBPAIRS + 1);
     }
 
     int score_hairpin(int i, int j, int nuci, int nuci1, int nucj_1, int nucj, int tetra_hex_tri_index = -1)
@@ -260,19 +283,19 @@ public:
             energy = hairpin37[30] + (int)(lxc37 * log((size) / 30.));
         if (size < 3)
             return energy;
-        /* should only be the case when folding alignments */
-        // #ifdef SPECIAL_HP
-        //         if (size == 4 && tetra_hex_tri_index > -1)
-        //             return Tetraloop37[tetra_hex_tri_index];
-        //         else if (size == 6 && tetra_hex_tri_index > -1)
-        //             return Hexaloop37[tetra_hex_tri_index];
-        //         else if (size == 3)
-        //         {
-        //             if (tetra_hex_tri_index > -1)
-        //                 return Triloop37[tetra_hex_tri_index];
-        //             return (energy + (type > 2 ? TerminalAU37 : 0));
-        //         }
-        // #endif
+/* should only be the case when folding alignments */
+#ifdef SPECIAL_HP
+        if (size == 4 && tetra_hex_tri_index > -1)
+            return Tetraloop37[tetra_hex_tri_index];
+        else if (size == 6 && tetra_hex_tri_index > -1)
+            return Hexaloop37[tetra_hex_tri_index];
+        else if (size == 3)
+        {
+            if (tetra_hex_tri_index > -1)
+                return Triloop37[tetra_hex_tri_index];
+            return (energy + (type > 2 ? TerminalAU37 : 0));
+        }
+#endif
 
         energy += mismatchH37[type][si1][sj1];
         return energy;
@@ -362,6 +385,34 @@ public:
                 energy += mismatchI37[type][si1][sj1] + mismatchI37[type_2][sq1][sp1];
             }
         }
+        return energy;
+    }
+
+    // multi_loop
+    int E_MLstem(int type, int si1, int sj1)
+    {
+        int energy = 0;
+
+        if (si1 >= 0 && sj1 >= 0)
+        {
+            energy += mismatchM37[type][si1][sj1];
+        }
+        else if (si1 >= 0)
+        {
+            energy += dangle5_37[type][si1];
+        }
+        else if (sj1 >= 0)
+        {
+            energy += dangle3_37[type][sj1];
+        }
+
+        if (type > 2)
+        {
+            energy += TerminalAU37;
+        }
+
+        energy += ML_intern37;
+
         return energy;
     }
 

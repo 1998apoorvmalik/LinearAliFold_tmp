@@ -13,7 +13,6 @@
 
 #include "Linearalifold.h"
 #include "Utils/utility.h"
-// #include "Utils/utility_v.h"
 #include "Utils/ribo.h"
 #include "Utils/energy_model.h"
 
@@ -38,7 +37,7 @@ void BeamCKYParser::sort_keys(std::unordered_map<int, State> &map, std::vector<s
 }
 #endif
 
-EnergyModel em("energy_data");
+EnergyModel em("energy_data", true);
 
 void BeamCKYParser::get_parentheses(char *result, string &seq)
 {
