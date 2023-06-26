@@ -286,32 +286,32 @@ inline double score_single_without_junctionB(int i, int j, int p, int q,
            score_single_nuc(i, j, p, q, nucp_1, nucq1);
 }
 
-inline double score_multi(int i, int j, int nuci, int nuci1, int nucj_1, int nucj, int len)
-{
-    return score_junction_A(i, j, nuci, nuci1, nucj_1, nucj, len) +
-           multi_paired + multi_base;
-}
+// inline double score_multi(int i, int j, int nuci, int nuci1, int nucj_1, int nucj, int len)
+// {
+//     return score_junction_A(i, j, nuci, nuci1, nucj_1, nucj, len) +
+//            multi_paired + multi_base;
+// }
 
-inline double score_multi_unpaired(int i, int j)
-{
-    return (j - i + 1) * multi_unpaired;
-}
+// inline double score_multi_unpaired(int i, int j)
+// {
+//     return (j - i + 1) * multi_unpaired;
+// }
 
-inline double score_M1(int i, int j, int k, int nuci_1, int nuci, int nuck, int nuck1, int len)
-{
-    return score_junction_A(k, i, nuck, nuck1, nuci_1, nuci, len) +
-           score_multi_unpaired(k + 1, j) + base_pair_score(nuci, nuck) + multi_paired;
-}
+// inline double score_M1(int i, int j, int k, int nuci_1, int nuci, int nuck, int nuck1, int len)
+// {
+//     return score_junction_A(k, i, nuck, nuck1, nuci_1, nuci, len) +
+//            score_multi_unpaired(k + 1, j) + base_pair_score(nuci, nuck) + multi_paired;
+// }
 
-inline double score_external_paired(int i, int j, int nuci_1, int nuci, int nucj, int nucj1, int len)
-{
-    return score_junction_A(j, i, nucj, nucj1, nuci_1, nuci, len) +
-           external_paired + base_pair_score(nuci, nucj);
-}
+// inline double score_external_paired(int i, int j, int nuci_1, int nuci, int nucj, int nucj1, int len)
+// {
+//     return score_junction_A(j, i, nucj, nucj1, nuci_1, nuci, len) +
+//            external_paired + base_pair_score(nuci, nucj);
+// }
 
-inline double score_external_unpaired(int i, int j)
-{
-    return (j - i + 1) * external_unpaired;
-}
+// inline double score_external_unpaired(int i, int j)
+// {
+//     return (j - i + 1) * external_unpaired;
+// }
 
 #endif // FASTCKY_UTILITY_H

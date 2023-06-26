@@ -13,7 +13,6 @@
 
 #include "Linearalifold.h"
 #include "Utils/utility.h"
-#include "Utils/utility_v.h"
 #include "Utils/ribo.h"
 
 // #define SPECIAL_HP
@@ -423,9 +422,9 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
     // start CKY decoding
 
     if (seq_length > 0)
-        bestC[0].set(-v_score_external_unpaired(0, 0), MANNER_C_eq_C_plus_U);
+        bestC[0].set(-score_external_unpaired(0, 0), MANNER_C_eq_C_plus_U);
     if (seq_length > 1)
-        bestC[1].set(-v_score_external_unpaired(0, 1), MANNER_C_eq_C_plus_U);
+        bestC[1].set(-score_external_unpaired(0, 1), MANNER_C_eq_C_plus_U);
 
     ++nos_C;
 
@@ -561,7 +560,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                         if (u < 3)
                             newscore += -600;
                         else
-                            newscore += -v_score_hairpin(0, u + 1, new_nucj, new_nucj1, new_nucjnext_1, new_nucjnext, tetra_hex_tri);
+                            newscore += -score_hairpin(0, u + 1, new_nucj, new_nucj1, new_nucjnext_1, new_nucjnext, tetra_hex_tri);
                     }
 
                     if (pscore[j][jnext].ribo_score == VALUE_MIN)
@@ -696,7 +695,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                             if (u < 3)
                                 newscore += -600;
                             else
-                                newscore += -v_score_hairpin(0, u + 1, new_nuci, new_nuci1, new_nucjnext_1, new_nucjnext, tetra_hex_tri);
+                                newscore += -score_hairpin(0, u + 1, new_nuci, new_nuci1, new_nucjnext_1, new_nucjnext, tetra_hex_tri);
                         }
 
                         if (pscore[i][jnext].ribo_score == VALUE_MIN)
@@ -737,7 +736,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                         new_nuci1 = s3_i[s];
                         new_nucj_1 = s5_j[s];
                         new_nucj = SS_j[s];
-                        newscore += -v_score_multi(-1, -1, new_nuci, new_nuci1, new_nucj_1, new_nucj, -1);
+                        newscore += -score_multi(-1, -1, new_nuci, new_nuci1, new_nucj_1, new_nucj, -1);
                     }
 
                     if (pscore[i][j].ribo_score == VALUE_MIN)
@@ -864,7 +863,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                         new_nuci = SS_i[s];
                         new_nucj = SS_j[s];
                         new_nucj1 = (j + 1) < seq_length ? s3_j[s] : -1;
-                        newscore += -v_score_M1(-1, -1, -1, new_nuci_1, new_nuci, new_nucj, new_nucj1, -1); // no position information needed
+                        newscore += -score_M1(-1, -1, -1, new_nuci_1, new_nuci, new_nucj, new_nucj1, -1); // no position information needed
                     }
                     update_if_better(beamstepM[i], newscore, MANNER_M_eq_P);
                 }
@@ -887,7 +886,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                             new_nuci = SS_i[s];
                             new_nucj = SS_j[s];
                             new_nucj1 = (j + 1) < seq_length ? s3_j[s] : -1; // TODO, need to check boundary? it may diff. from RNAalifold
-                            M1_score += -v_score_M1(-1, -1, -1, new_nuci_1, new_nuci, new_nucj, new_nucj1, -1);
+                            M1_score += -score_M1(-1, -1, -1, new_nuci_1, new_nuci, new_nucj, new_nucj1, -1);
                         }
                         // candidate list
                         auto bestM2_iter = beamstepM2.find(i);
@@ -932,7 +931,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                                 new_nuck1 = SS_i[s];
                                 new_nucj = SS_j[s];
                                 new_nucj1 = (a2s_j[s] < a2s_seq_length_1[s]) ? s3_j[s] : -1; // external.c line 1165, weird
-                                newscore += -v_score_external_paired(-1, -1, new_nuck, new_nuck1, new_nucj, new_nucj1, -1);
+                                newscore += -score_external_paired(-1, -1, new_nuck, new_nuck1, new_nucj, new_nucj1, -1);
                             }
 
                             update_if_better(beamstepC, newscore, MANNER_C_eq_C_plus_P, k);
@@ -951,7 +950,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                             new_nuck1 = SS_i[s];
                             new_nucj = SS_j[s];
                             new_nucj1 = (a2s_j[s] < a2s_seq_length_1[s]) ? s3_j[s] : -1; // external.c line 1165, weird
-                            newscore += -v_score_external_paired(0, j, -1, new_nuck1, new_nucj, new_nucj1, -1);
+                            newscore += -score_external_paired(0, j, -1, new_nuck1, new_nucj, new_nucj1, -1);
                         }
                         update_if_better(beamstepC, newscore, MANNER_C_eq_C_plus_P, -1);
                     }
@@ -1036,7 +1035,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                                         nucj1 = s3_j[s];
 
                                         type = NUM_TO_PAIR(nucp, nucq);
-                                        newscore += -v_score_single_alifold(0, 0, type, tt2[s], nucp1, nucq_1, nuci_1, nucj1); // internal.c line 476, left, right gaps are all 0
+                                        newscore += -score_single_alifold(0, 0, type, tt2[s], nucp1, nucq_1, nuci_1, nucj1); // internal.c line 476, left, right gaps are all 0
                                     }
 
                                     if (pscore[p][q].ribo_score == VALUE_MIN)
@@ -1069,7 +1068,7 @@ BeamCKYParser::DecoderResult BeamCKYParser::parse_alifold(std::vector<std::strin
                                         u2_local = a2s_q_1[s] - a2s_j[s];
 
                                         type = NUM_TO_PAIR(nucp, nucq);
-                                        newscore += -v_score_single_alifold(u1_local, u2_local, type, tt2[s], nucp1, nucq_1, nuci_1, nucj1);
+                                        newscore += -score_single_alifold(u1_local, u2_local, type, tt2[s], nucp1, nucq_1, nuci_1, nucj1);
                                     }
 
                                     if (pscore[p][q].ribo_score == VALUE_MIN)
@@ -1289,6 +1288,7 @@ BeamCKYParser::BeamCKYParser(int beam_size,
 
 int main(int argc, char **argv)
 {
+    parseEnergyData("energy_data");
 
     struct timeval parse_alifold_starttime, parse_alifold_endtime;
 
@@ -1357,5 +1357,7 @@ int main(int argc, char **argv)
         printf("beam size %d\n", beamsize);
         printf("runtime %.2f seconds\n", parse_elapsed_time);
     }
+
+    freeMemory(); // Free memory for energy data
     return 0;
 }
